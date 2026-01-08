@@ -2,15 +2,9 @@
 
 ## Overview
 
-This project is a research-grade trading system that uses **reinforcement learning (RL)** to manage a portfolio of large-cap U.S. stocks. The bot trades on a **long-only basis**, makes decisions every **10 minutes**, and allocates capital across multiple stocks in a way similar to a disciplined portfolio manager or swing trader.
+This project is a trading system that uses **reinforcement learning (RL)** to manage a portfolio of large-cap U.S. stocks. The bot trades on a **long-only basis**, makes decisions every **10 minutes**, and allocates capital across multiple stocks in a way similar to a disciplined portfolio manager or swing trader.
 
 Rather than hard-coding entry/exit rules, the system learns *when* and *how much* to allocate to each stock based on market conditions, recent price behavior, macro context, news pressure, and its own portfolio state.
-
-The project is designed to be:
-- **Realistic** (paper trading, transaction costs, no leverage)
-- **Adaptive** (continual learning with recent data emphasized)
-- **Explainable** (structured state, clear reward logic)
-- **Accessible** (free APIs only, no proprietary data)
 
 This is not a high-frequency trading system and does not attempt to compete on speed or latency.
 
@@ -94,7 +88,7 @@ The model is not fed raw price time series; instead, it receives normalized, sca
 
 ## Learning Approach
 
-The system uses **reinforcement learning**, not supervised prediction.
+The system uses **reinforcement learning**
 
 At every 10-minute step:
 1. The agent observes the current state
@@ -104,7 +98,7 @@ At every 10-minute step:
 
 The agent continuously evaluates its past decisions and updates itself using recent experience.
 
-To maintain stability:
+To maintain stability in ever changing markets:
 - Rewards include transaction costs
 - Turnover is penalized
 - Model updates are batched (not every single step)
@@ -122,44 +116,7 @@ This project intentionally avoids paid or proprietary data.
 | FRED | Daily macroeconomic indicators |
 | SEC EDGAR | Corporate filings and event signals |
 
-All data is timestamped and used in a leakage-safe manner.
-
----
-
-## What This Project Is (and Is Not)
-
-**This project is:**
-- A realistic RL trading system
-- A learning and research platform
-- A portfolio allocation problem, not a signal toy
-
-**This project is not:**
-- A guaranteed money-making system
-- High-frequency trading
-- A black-box “AI predictor”
-- Financial advice
-
----
-
-## Intended Audience
-
-This project is designed for:
-- CS undergraduates or graduates
-- Engineers interested in ML, RL, or quantitative finance
-- Researchers who want a practical RL environment
-
-A solid understanding of Python, probability, and machine learning concepts is assumed.
-
----
-
-## Current Status
-
-The project currently focuses on:
-- Data ingestion and validation
-- Environment and state design
-- Reinforcement learning architecture
-
-Model training, evaluation, and deployment are iterative and experimental by design.
+All data must be timestamped and used in a leakage-safe manner.
 
 ---
 
@@ -171,16 +128,4 @@ Nothing in this repository constitutes investment advice.
 
 ---
 
-## Next Steps
-
-Potential future extensions include:
-- Walk-forward evaluation automation
-- Universe expansion
-- Improved risk modeling
-- More advanced policy architectures
-
-These are intentionally deferred until the core system is stable.
-
----
-
-If you are reading this for the first time, start by reviewing the **Design Specification** document, then explore the data ingestion scripts before looking at the learning components.
+For a more detailed look, read the **Design Specification** document. 
