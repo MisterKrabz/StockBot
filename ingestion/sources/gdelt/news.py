@@ -29,9 +29,9 @@ class GdeltSource:
         params: Dict[str, Any] = {
             "query": query,
             "mode": "artlist",
-            "format": "json",          # ✅ CRITICAL: ensure JSON response
+            "format": "json",
             "maxrecords": int(maxrecords),
-            "sort": "hybridrel",       # stable default; not critical
+            "sort": "hybridrel",
         }
         if startdatetime:
             params["startdatetime"] = startdatetime
@@ -51,7 +51,7 @@ class GdeltSource:
                 # Make HTTP failures explicit (429/500/etc)
                 r.raise_for_status()
 
-                # If content-type isn't JSON, don't try to parse it as JSON
+                # If content-type isn't JSON, don't parse it as JSON
                 ctype = (r.headers.get("Content-Type") or "").lower()
                 if "json" not in ctype:
                     snippet = r.text[:400].replace("\n", " ")
@@ -69,8 +69,7 @@ class GdeltSource:
 
                 df = pd.DataFrame(articles)
 
-                # Standardize a couple columns your tests expect
-                # (depending on endpoint version, names can differ)
+                # Standardize publish_datetime column
                 if "seendate" in df.columns and "publish_datetime" not in df.columns:
                     df.rename(columns={"seendate": "publish_datetime"}, inplace=True)
 
@@ -84,5 +83,5 @@ class GdeltSource:
                 else:
                     break
 
-        # Raise a helpful error after retries
+        # Raise an error after retries
         raise RuntimeError(f"GDELT fetch_news failed after {retries} attempts: {last_err}") from last_err

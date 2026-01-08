@@ -9,7 +9,7 @@ import pandas as pd
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
-from alpaca.data.enums import DataFeed  # ✅ ADD: choose IEX vs SIP
+from alpaca.data.enums import DataFeed 
 
 from ingestion.storage.writers import ensure_utc_timestamp
 
@@ -28,7 +28,7 @@ class AlpacaMarketSource:
         start: datetime,
         end: datetime,
         timeframe: str,
-        feed: Optional[DataFeed] = None,  # ✅ optional override
+        feed: Optional[DataFeed] = None,
     ) -> pd.DataFrame:
         """
         timeframe: "10min" or "1hour"
@@ -40,7 +40,6 @@ class AlpacaMarketSource:
         tf = self._map_timeframe(timeframe)
         client = self._client()
 
-        # ✅ Default to IEX for free plan compatibility
         if feed is None:
             feed = DataFeed.IEX
 
@@ -50,7 +49,7 @@ class AlpacaMarketSource:
             start=start,
             end=end,
             limit=10000,
-            feed=feed,  # ✅ CRITICAL FIX
+            feed=feed, 
         )
 
         bars = client.get_stock_bars(req).df
