@@ -1,158 +1,186 @@
----
-title: "Hybrid ML-First Trading System (Sentiment + Fundamentals + Price)"
-output: github_document
----
+# Reinforcement Learning Portfolio Swing Trading Bot
 
-## 0. What we are building (high-level)
+## Overview
 
-We are building an **ML-first trading system** that:
+This project is a research-grade trading system that uses **reinforcement learning (RL)** to manage a portfolio of large-cap U.S. stocks. The bot trades on a **long-only basis**, makes decisions every **10 minutes**, and allocates capital across multiple stocks in a way similar to a disciplined portfolio manager or swing trader.
 
-1. Collects **time-stamped** market + alternative data (price/volume, bid-ask, news sentiment, social sentiment, fundamentals/filings).
-2. Converts everything into **as-of features**: "What did we know at time *t*?"
-3. Trains a model to output a **probabilistic forecast** over a chosen horizon (e.g., 1 day, 5 days, 60 minutes):
-   - a central estimate (mean/median trajectory),
-   - uncertainty (IQR / quantiles),
-   - tail risk (bad-case quantiles).
-4. Converts the forecast into trades using a **small, deterministic execution + risk layer**.
+Rather than hard-coding entry/exit rules, the system learns *when* and *how much* to allocate to each stock based on market conditions, recent price behavior, macro context, news pressure, and its own portfolio state.
 
-The ML model does the pattern recognition; the non-ML layer ensures safety + tradability.
+The project is designed to be:
+- **Realistic** (paper trading, transaction costs, no leverage)
+- **Adaptive** (continual learning with recent data emphasized)
+- **Explainable** (structured state, clear reward logic)
+- **Accessible** (free APIs only, no proprietary data)
+
+This is not a high-frequency trading system and does not attempt to compete on speed or latency.
 
 ---
 
-## 1. Why we need the non-ML layer (even if we want "mostly ML")
+## Core Trading Philosophy
 
-Even if the model outputs a perfect forecast distribution, we still must decide:
+The bot is designed to behave like a **systematic swing portfolio manager**, not a scalper or day trader. Concretely, that means:
 
-- Which symbols are eligible to trade (liquidity, price floor, etc.)
-- How much to buy/sell (position sizing)
-- How to account for transaction costs (spread + slippage)
-- Exposure limits (per-name, sector, total gross/net)
-- Safety rules (max drawdown, stop trading conditions)
+- Decisions are made at **fixed 10-minute intervals**
+- Positions are typically held for **hours to days**
+- Capital is rotated toward relative strength and favorable regimes
+- Risk and volatility are explicitly considered
+- Overtrading is actively discouraged
 
-This "algorithmic code" is not optional. It is the seatbelt.
-
----
-
-## 2. Data Sources (examples)
-
-### 2.1 Market Data
-- OHLCV candles at the target resolution (daily or intraday bars)
-- Quotes / bid-ask (at least spread proxy)
-
-### 2.2 News & News Sentiment
-- Article timestamps + ticker tagging
-- Sentiment score per article or aggregated per ticker per time bucket
-
-### 2.3 Social / Investor Sentiment
-- Social sentiment time series per ticker (e.g., StockTwits-like sources)
-
-### 2.4 Fundamentals / Financial Statements
-- Income statement / balance sheet / cash flow
-- **Critical:** attach to dates using the *release/filing time* (as-of), not period-end.
+The model is allowed to hold cash when conditions are unfavorable.
 
 ---
 
-## 3. The most important concept: "as-of" feature alignment (no leakage)
+## High-Level Architecture
 
-### The rule
-At time `t`, the feature set must only include information published **at or before** `t`.
+The system is composed of five main layers:
 
-Common leakage bugs:
-- Using fundamentals as if they were known at quarter end (they are known at filing/release time).
-- Using revised datasets without "as originally reported" history.
-- Building labels then accidentally letting future prices influence features.
+1. **Data Ingestion**
+   - Collects market, news, macro, and corporate-event data
+   - Uses only free APIs
+   - Caches data locally to respect rate limits
 
-We enforce "as-of joins" so each row represents:
-`(symbol, time t) -> features known by time t -> label from future prices`
+2. **State Construction**
+   - Converts raw data into numerical features
+   - Encodes short-term behavior and longer-term context
+   - Includes portfolio state (holdings, cash, PnL)
 
----
+3. **Reinforcement Learning Environment**
+   - Advances in fixed 10-minute steps
+   - Simulates portfolio evolution
+   - Computes rewards from realized PnL
 
-## 4. Dataset design
+4. **Learning System**
+   - Uses Proximal Policy Optimization (PPO)
+   - Employs a recurrent (LSTM) policy to emphasize recent data
+   - Trains continually using rolling updates
 
-Each training row is:
-
-- **Index:** (symbol i, time t)
-- **Inputs X(i,t):**
-  - price/volume/volatility features
-  - bid-ask / liquidity proxies
-  - aggregated news sentiment in a recent window (e.g., past 24h)
-  - aggregated social sentiment (e.g., past 24h)
-  - fundamentals (as-of last filing date)
-  - market regime features (SPY trend, volatility index proxy, etc.)
-- **Label y(i,t):** future outcome over horizon H
-
-### Label options
-- Regression: forward return over horizon H
-- Classification: probability forward return > threshold
-- Ranking: cross-sectional rank of forward return
-
-We prefer **probabilistic outputs**:
-- Predict multiple quantiles (e.g., 10/50/90th percentile),
-- Then compute IQR, downside risk, etc.
+5. **Execution (Paper Trading)**
+   - Converts portfolio weights into integer share orders
+   - Executes via Alpaca paper trading
+   - Logs all decisions and outcomes
 
 ---
 
-## 5. Model: probabilistic forecasting (what the model outputs)
+## Trading Universe and Constraints
 
-Instead of outputting a single "BUY/SELL", the model outputs a distribution summary:
+- **Fixed universe** of large-cap stocks
+- **Long-only**
+- No leverage
+- No short selling
+- Portfolio weights must be feasible given available cash
+- Orders are placed in whole shares
 
-- `q10(i,t)`: pessimistic outcome (10th percentile)
-- `q50(i,t)`: median outcome
-- `q90(i,t)`: optimistic outcome
-
-From this we derive:
-- **Expected value proxy:** q50 (or mean)
-- **Uncertainty:** (q75 - q25) or (q90 - q10)
-- **Downside risk:** q10
-
-This makes the system more robust than a single-point forecast.
+The fixed universe simplifies learning, reduces leakage risk, and keeps behavior interpretable.
 
 ---
 
-## 6. Training & evaluation (how we avoid fooling ourselves)
+## Time and Context Handling
 
-### 6.1 Walk-forward validation (time-based splits)
-We never shuffle randomly.
-We do rolling windows:
+Although the bot acts every 10 minutes, it sees **much more than just the last candle**.
 
-- Train: years A..B
-- Validate: year B+1
-- Test: year B+2
-- Roll forward and repeat
+The observation includes:
+- Very recent behavior (last few hours)
+- Medium-term context (1–5 days)
+- Broader regime indicators (weeks)
 
-### 6.2 Cost-aware backtesting
-We simulate:
-- buys execute closer to ask,
-- sells execute closer to bid,
-- plus slippage assumptions.
+Recent information naturally carries more weight through:
+- Rolling features
+- Recurrent memory (LSTM)
+- Training procedures that emphasize newer data
 
-A model that "works" only at mid-price is not tradable.
-
-### 6.3 Monitoring for regime drift
-Markets change.
-We track:
-- feature drift,
-- prediction confidence,
-- live vs expected error,
-- drawdown triggers.
+The model is not fed raw price time series; instead, it receives normalized, scale-invariant numerical summaries.
 
 ---
 
-## 7. Trading policy (minimal deterministic layer)
+## Learning Approach
 
-Given the forecast distribution per symbol:
+The system uses **reinforcement learning**, not supervised prediction.
 
-1. Compute a **score**:
-   - e.g., `score = q50 - cost_estimate - risk_penalty * uncertainty`
-2. Filter:
-   - `q10` must be above a downside threshold (avoid ugly tails)
-   - liquidity and spread constraints
-3. Construct portfolio:
-   - pick top N symbols by score (and/or short bottom N if allowed)
-   - size positions by confidence (smaller when
-  
+At every 10-minute step:
+1. The agent observes the current state
+2. It outputs target portfolio weights
+3. Trades are executed (paper)
+4. After the next step, the system computes a reward based on realized PnL
 
-## 8. Problems we may encounter: 
- 1. data leakage - we must train the underlying models based on what we know at time *t* to avoid exposing the model to future data. If we expose the model to future data then it will have unexpected inference performance. 
+The agent continuously evaluates its past decisions and updates itself using recent experience.
 
+To maintain stability:
+- Rewards include transaction costs
+- Turnover is penalized
+- Model updates are batched (not every single step)
 
+---
+
+## Data Sources (Free Only)
+
+This project intentionally avoids paid or proprietary data.
+
+| Source | Purpose |
+|------|--------|
+| Alpaca | Market prices and paper trading |
+| GDELT | News volume and timing |
+| FRED | Daily macroeconomic indicators |
+| SEC EDGAR | Corporate filings and event signals |
+
+All data is timestamped and used in a leakage-safe manner.
+
+---
+
+## What This Project Is (and Is Not)
+
+**This project is:**
+- A realistic RL trading system
+- A learning and research platform
+- A portfolio allocation problem, not a signal toy
+
+**This project is not:**
+- A guaranteed money-making system
+- High-frequency trading
+- A black-box “AI predictor”
+- Financial advice
+
+---
+
+## Intended Audience
+
+This project is designed for:
+- CS undergraduates or graduates
+- Engineers interested in ML, RL, or quantitative finance
+- Researchers who want a practical RL environment
+
+A solid understanding of Python, probability, and machine learning concepts is assumed.
+
+---
+
+## Current Status
+
+The project currently focuses on:
+- Data ingestion and validation
+- Environment and state design
+- Reinforcement learning architecture
+
+Model training, evaluation, and deployment are iterative and experimental by design.
+
+---
+
+## Disclaimer
+
+This project is for **educational and research purposes only**.  
+All trading is performed using paper accounts.  
+Nothing in this repository constitutes investment advice.
+
+---
+
+## Next Steps
+
+Potential future extensions include:
+- Walk-forward evaluation automation
+- Universe expansion
+- Improved risk modeling
+- More advanced policy architectures
+
+These are intentionally deferred until the core system is stable.
+
+---
+
+If you are reading this for the first time, start by reviewing the **Design Specification** document, then explore the data ingestion scripts before looking at the learning components.
