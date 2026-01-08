@@ -1,3 +1,47 @@
+# secrets 
 .env
-runs/
+
+# random ass shit that would bloat the repo
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.venv/
+venv/
+env/
+envs/
+.conda/
+conda-env/
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+tmp/
+temp/
+.cache/
+*.log
+
+# data and artifacts (share this stuff in google drive)
 data/
+runs/
+models/
+checkpoints/
+artifacts/
+logs/
+*.parquet
+*.csv
+*.h5
+*.ckpt
+*.pt
+*.pth
+*.onnx
+*.npz
+*.npy
+
+# jupyter notebooks 
+.ipynb_checkpoints/
+*.ipynb
+
