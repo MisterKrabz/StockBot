@@ -1,4 +1,4 @@
-# Reinforcement Learning Portfolio Swing Trading Bot
+# Reinforcement Learning Swing Trading Bot (RLST)
 
 ## Overview
 
@@ -7,6 +7,22 @@ This project is a trading system that uses **reinforcement learning (RL)** to ma
 Rather than hard-coding entry/exit rules, the system learns *when* and *how much* to allocate to each stock based on market conditions, recent price behavior, macro context, news pressure, and its own portfolio state.
 
 This is not a high-frequency trading system and does not attempt to compete on speed or latency.
+
+---
+
+## Setup
+
+1. **clone this repository**
+   - in the terminal, navigate to your intended workspace
+   - run "git clone https://github.com/MisterKrabz/StockBot"
+
+2. **install dependencies**
+   - activate a conda environment
+   - run "pip install -r requirements.lock.txt"
+
+3. **set up your env**
+   - collaborators should have access to our communal env file from the google drive
+   - non collaborators should read through the .env.example file and obtain their own API keys 
 
 ---
 
