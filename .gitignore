@@ -32,7 +32,6 @@ checkpoints/
 artifacts/
 logs/
 *.parquet
-*.csv
 *.h5
 *.ckpt
 *.pt
